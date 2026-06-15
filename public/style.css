@@ -1,0 +1,172 @@
+:root {
+    --primary-green: #2ecc71;
+    --dark-green: #27ae60;
+    --light-green: #eafaf1;
+    --white: #ffffff;
+    --text-dark: #333333;
+    --text-light: #7f8c8d;
+    --border-color: #e0e0e0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7f6;
+    color: var(--text-dark);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    background-color: var(--white);
+    width: 100%;
+    max-width: 400px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+header {
+    background-color: var(--primary-green);
+    color: var(--white);
+    text-align: center;
+    padding: 20px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+header p {
+    margin: 5px 0 0 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+main {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 2px var(--light-green);
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--primary-green);
+    color: var(--white);
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: var(--dark-green);
+}
+
+.link {
+    color: var(--primary-green);
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.link:hover {
+    text-decoration: underline;
+}
+
+.text-center {
+    text-align: center;
+    margin-top: 15px;
+}
+
+.error-msg {
+    color: #e74c3c;
+    font-size: 14px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.success-msg {
+    color: var(--primary-green);
+    font-size: 14px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.dashboard-card {
+    background: var(--light-green);
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.dashboard-card h3 {
+    margin-top: 0;
+    color: var(--dark-green);
+}
+
+.method-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.btn-select {
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.btn-select:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(46, 204, 113, 0.2);
+}
+
+.btn-select:active {
+    transform: translateY(0);
+}
+
