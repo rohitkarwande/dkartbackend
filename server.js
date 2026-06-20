@@ -1,11 +1,12 @@
-const express = require('express');
+ const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
 
+require('dotenv').config();
+const chatRoutes = require('./routes/chatRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const equipmentRoutes = require('./routes/equipmentRoutes');
-
+const inquiryRoutes = require('./routes/inquiryRoutes');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
@@ -25,7 +26,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/equipment', equipmentRoutes);
-
+app.use('/api/inquiries', inquiryRoutes);
+app.use('/api/chat', chatRoutes);
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {

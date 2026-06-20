@@ -1,0 +1,105 @@
+const db = require('../config/db');
+
+const createInquiry = async (req, res) => {
+    try {
+        const buyerId = req.user.id;
+        const { equipment_post_id } = req.body;
+
+        if (!equipment_post_id) {
+            return res.status(400).json({
+                error: 'equipment_post_id is required'
+            });
+        }
+
+        const equipment = await db.query(
+            `SELECT * FROM equipment_posts WHERE id = $1`,
+            [equipment_post_id]
+        );
+
+        if (equipment.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Equipment not found'
+            });
+        }
+
+        const sellerId = equipment.rows[0].seller_id;
+
+        const inquiry = await db.query(
+            `INSERT INTO inquiries
+            (buyer_id, seller_id, equipment_post_id)
+            VALUES ($1,$2,$3)
+            RETURNING *`,
+            [buyerId, sellerId, equipment_post_id]
+        );
+
+        res.status(201).json({
+            message: 'Inquiry created successfully',
+            inquiry: inquiry.rows[0]
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            error: 'Server Error'
+        });
+    }
+};
+ 
+const getSellerInquiries = async (req, res) => {
+    try {
+        const sellerId = req.user.id;
+
+        const result = await db.query(
+            `SELECT *
+             FROM inquiries
+             WHERE seller_id = $1
+             ORDER BY created_at DESC`,
+            [sellerId]
+        );
+
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            error: 'Server Error'
+        });
+    }
+}; 
+
+const updateInquiryStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const result = await db.query(
+            `UPDATE inquiries
+             SET status = $1
+             WHERE id = $2
+             RETURNING *`,
+            [status, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Inquiry not found'
+            });
+        }
+
+        res.json({
+            message: 'Status updated successfully',
+            inquiry: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            error: 'Server Error'
+        });
+    }
+};
+module.exports = {
+    createInquiry,
+        getSellerInquiries,
+         updateInquiryStatus
+};

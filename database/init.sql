@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS users (
+ CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE,
     phone VARCHAR(20) UNIQUE,
@@ -45,4 +45,30 @@ CREATE INDEX IF NOT EXISTS idx_equipment_posts_condition ON equipment_posts(cond
 CREATE INDEX IF NOT EXISTS idx_equipment_posts_seller_id ON equipment_posts(seller_id);
 CREATE INDEX IF NOT EXISTS idx_equipment_posts_created_at ON equipment_posts(created_at);
 CREATE INDEX IF NOT EXISTS idx_equipment_posts_status ON equipment_posts(status);
+
+-- Inquiries Table
+CREATE TABLE IF NOT EXISTS inquiries (
+    id SERIAL PRIMARY KEY,
+    buyer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    seller_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    equipment_post_id UUID REFERENCES equipment_posts(id) ON DELETE CASCADE,
+    status VARCHAR(30) DEFAULT 'Pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Chat Rooms
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    id SERIAL PRIMARY KEY,
+    inquiry_id INTEGER REFERENCES inquiries(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Messages
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
         
