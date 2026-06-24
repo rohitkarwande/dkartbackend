@@ -22,4 +22,16 @@ router.patch(
     inquiryController.updateInquiryStatus
 );
 
+router.get(
+    '/buyer',
+    authMiddleware,
+    inquiryController.getBuyerInquiries
+);
+
+router.get(
+    '/:id',
+    authMiddleware,
+    inquiryController.getInquiryById
+);
+
 module.exports = router;

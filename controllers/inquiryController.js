@@ -3,6 +3,7 @@ const db = require('../config/db');
 const createInquiry = async (req, res) => {
     try {
         const buyerId = req.user.id;
+        console.log("createInquiry req.body:", req.body);
         const { equipment_post_id } = req.body;
 
         if (!equipment_post_id) {
@@ -31,6 +32,17 @@ const createInquiry = async (req, res) => {
             RETURNING *`,
             [buyerId, sellerId, equipment_post_id]
         );
+
+        await db.query(
+            `INSERT INTO engagement_metrics (equipment_post_id, inquiry_count)
+             VALUES ($1, 1)
+             ON CONFLICT (equipment_post_id)
+             DO UPDATE SET inquiry_count = engagement_metrics.inquiry_count + 1, updated_at = CURRENT_TIMESTAMP`,
+            [equipment_post_id]
+        );
+
+        // Track inquiry analytics
+        await db.query(`INSERT INTO analytics_events (user_id, event_type, equipment_post_id) VALUES ($1, 'inquiry', $2)`, [buyerId, equipment_post_id]);
 
         res.status(201).json({
             message: 'Inquiry created successfully',
@@ -86,6 +98,11 @@ const updateInquiryStatus = async (req, res) => {
             });
         }
 
+        if (status === 'Deal Closed') {
+            const inquiry = result.rows[0];
+            await db.query(`INSERT INTO analytics_events (user_id, event_type, equipment_post_id) VALUES ($1, 'deal', $2)`, [inquiry.buyer_id, inquiry.equipment_post_id]);
+        }
+
         res.json({
             message: 'Status updated successfully',
             inquiry: result.rows[0]
@@ -98,8 +115,59 @@ const updateInquiryStatus = async (req, res) => {
         });
     }
 };
+
+const getBuyerInquiries = async (req, res) => {
+    try {
+        const buyerId = req.user.id;
+
+        const result = await db.query(
+            `SELECT *
+             FROM inquiries
+             WHERE buyer_id = $1
+             ORDER BY created_at DESC`,
+            [buyerId]
+        );
+
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            error: 'Server Error'
+        });
+    }
+};
+
+const getInquiryById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const result = await db.query(
+            `SELECT * FROM inquiries 
+             WHERE id = $1 AND (buyer_id = $2 OR seller_id = $2)`,
+            [id, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Inquiry not found'
+            });
+        }
+
+        res.json(result.rows[0]);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            error: 'Server Error'
+        });
+    }
+};
 module.exports = {
     createInquiry,
-        getSellerInquiries,
-         updateInquiryStatus
+    getSellerInquiries,
+    updateInquiryStatus,
+    getBuyerInquiries,
+    getInquiryById
 };

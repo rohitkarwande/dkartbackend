@@ -135,4 +135,10 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-module.exports = { sendOtp, verifyOtp };
+const logout = async (req, res) => {
+  // In a stateless JWT setup, logout is typically handled client-side by deleting the token.
+  // We can also clear cookies if they were used.
+  res.json({ message: "Logout successful" });
+};
+
+module.exports = { sendOtp, verifyOtp, logout };

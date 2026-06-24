@@ -40,4 +40,26 @@ const sendEmailOTP = async (to, otp) => {
     }
 };
 
-module.exports = { sendEmailOTP };
+const sendTransactionalEmail = async (to, subject, message) => {
+    if (!transporter) {
+        console.log(`[MOCK EMAIL] Sending Transactional Email to ${to} | Subject: ${subject}`);
+        return true;
+    }
+
+    try {
+        await transporter.sendMail({
+            from: `"Dkart System" <${process.env.SMTP_USER}>`,
+            to: to,
+            subject: subject,
+            text: message,
+            html: `<p>${message}</p>`
+        });
+        console.log(`Transactional email sent successfully to ${to}`);
+        return true;
+    } catch (error) {
+        console.error('Error sending Transactional Email:', error);
+        throw error;
+    }
+};
+
+module.exports = { sendEmailOTP, sendTransactionalEmail };

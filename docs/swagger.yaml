@@ -242,3 +242,416 @@ paths:
       responses:
         '200':
           description: Status updated successfully
+  /auth/send-otp:
+    post:
+      summary: Send OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identifier:
+                  type: string
+                action:
+                  type: string
+      responses:
+        '200':
+          description: OTP sent
+  /auth/verify-otp:
+    post:
+      summary: Verify OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                otp:
+                  type: string
+      responses:
+        '200':
+          description: Verified
+  /auth/logout:
+    post:
+      summary: Logout user
+      responses:
+        '200':
+          description: Logout successful
+  /user/profile:
+    get:
+      summary: Get user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved
+    put:
+      summary: Update profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                company_name:
+                  type: string
+                bio:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+  /user/kyc:
+    post:
+      summary: Submit KYC
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document_type:
+                  type: string
+                document_url:
+                  type: string
+      responses:
+        '200':
+          description: KYC submitted
+  /user/become-seller:
+    post:
+      summary: Become seller
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Role updated
+  /user/dashboard:
+    get:
+      summary: Dashboard stats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Stats
+  /bookmarks/listings/{equipmentId}:
+    post:
+      summary: Add bookmark
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: equipmentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Bookmarked
+    delete:
+      summary: Remove bookmark
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: equipmentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Removed
+  /bookmarks/listings:
+    get:
+      summary: Get bookmarks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bookmarks list
+  /sellers/{sellerId}/trust-profile:
+    get:
+      summary: Trust profile
+      parameters:
+        - in: path
+          name: sellerId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Profile info
+  /sellers/{sellerId}/reviews:
+    post:
+      summary: Add review
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: sellerId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                review_text:
+                  type: string
+      responses:
+        '201':
+          description: Review added
+    get:
+      summary: Get reviews
+      parameters:
+        - in: path
+          name: sellerId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of reviews
+  /reports/fraud:
+    post:
+      summary: Report fraud
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reported_user_id:
+                  type: integer
+                equipment_post_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Reported
+  /engagement/notifications:
+    get:
+      summary: Get notifications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of notifications
+  /engagement/notifications/{id}/read:
+    put:
+      summary: Mark notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Read
+  /engagement/recently-viewed:
+    get:
+      summary: Get recently viewed
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Viewed items
+  /engagement/suggestions:
+    get:
+      summary: Get suggestions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Suggestions
+  /inquiries:
+    post:
+      summary: Create a new inquiry (Unlock seller contact info)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                equipment_post_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Inquiry created successfully
+  /inquiries/buyer:
+    get:
+      summary: Get all inquiries made by the current buyer
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of inquiries
+  /inquiries/seller:
+    get:
+      summary: Get all inquiries received by the current seller
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of received inquiries
+  /inquiries/{id}:
+    get:
+      summary: Get specific inquiry details
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Inquiry details
+  /inquiries/{id}/status:
+    patch:
+      summary: Update the status of an inquiry
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [Pending, Negotiating, Deal Closed, Cancelled]
+      responses:
+        '200':
+          description: Status updated
+  /chat/rooms:
+    post:
+      summary: Initialize a chat room for a listing
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                equipment_post_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Chat room initialized
+    get:
+      summary: List all active chat rooms for the current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Active chat rooms
+  /chat/rooms/{roomId}/messages:
+    get:
+      summary: Get chat history for a specific room
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Chat history
+    post:
+      summary: Send a new message in a chat room
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      responses:
+        '201':
+          description: Message sent
+  /chat/messages/{messageId}/read:
+    put:
+      summary: Mark a specific message as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Message marked as read
+  /deals/history:
+    get:
+      summary: Get history of closed deals for the user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: History of closed deals
+  /deals/metrics:
+    get:
+      summary: Get conversion tracking metrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Conversion metrics

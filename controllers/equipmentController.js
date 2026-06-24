@@ -23,15 +23,23 @@ const createEquipment = async (req, res) => {
         if (price !== undefined && price < 0) return sendError(res, 'Price cannot be negative');
         if (manufacturingYear && manufacturingYear > new Date().getFullYear()) return sendError(res, 'Manufacturing year cannot exceed current year');
 
+        // Auto Moderation
+        let initialStatus = 'Active';
+        if (!req.files || req.files.length === 0) {
+            initialStatus = 'Draft'; // Missing images moderation
+        } else if (price === 0 || price > 100000000) {
+            initialStatus = 'Draft'; // Suspicious price moderation
+        }
+
         // Insert Post
         const insertQuery = `
             INSERT INTO equipment_posts (
                 seller_id, title, description, category, brand, model, 
                 manufacturing_year, condition, price, city, state, country, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Active')
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *;
         `;
-        const values = [sellerId, title, description, category, brand, model, manufacturingYear || null, condition, price || null, city, state || null, country || null];
+        const values = [sellerId, title, description, category, brand, model, manufacturingYear || null, condition, price || null, city, state || null, country || null, initialStatus];
         const result = await db.query(insertQuery, values);
         const post = result.rows[0];
 
@@ -183,6 +191,19 @@ const getSingleEquipment = async (req, res) => {
         
         if (postResult.rows.length === 0) return sendError(res, 'Equipment post not found', 404);
 
+        // Increment view count
+        await db.query(
+            `INSERT INTO engagement_metrics (equipment_post_id, view_count)
+             VALUES ($1, 1)
+             ON CONFLICT (equipment_post_id)
+             DO UPDATE SET view_count = engagement_metrics.view_count + 1, updated_at = CURRENT_TIMESTAMP`,
+            [id]
+        );
+
+        // Track view analytics
+        const userId = req.user ? req.user.id : null;
+        await db.query(`INSERT INTO analytics_events (user_id, event_type, equipment_post_id) VALUES ($1, 'view', $2)`, [userId, id]);
+
         const imagesResult = await db.query('SELECT * FROM equipment_images WHERE equipment_post_id = $1 ORDER BY display_order', [id]);
 
         res.json({
@@ -233,6 +254,22 @@ const listEquipment = async (req, res) => {
             queryParams.push(maxPrice);
         }
         if (search) {
+            // Track search analytics
+            const userId = req.user ? req.user.id : null;
+            await db.query(`INSERT INTO search_analytics (user_id, search_query) VALUES ($1, $2)`, [userId, search]);
+
+            // Track popular tags
+            const tags = search.split(/\s+/).filter(t => t.length > 2);
+            for (const tag of tags) {
+                await db.query(
+                    `INSERT INTO popular_tags (tag, search_count)
+                     VALUES ($1, 1)
+                     ON CONFLICT (tag)
+                     DO UPDATE SET search_count = popular_tags.search_count + 1, last_searched_at = CURRENT_TIMESTAMP`,
+                    [tag.toLowerCase()]
+                );
+            }
+
             queryStr += ` AND (ep.title ILIKE $${paramIndex} OR ep.brand ILIKE $${paramIndex} OR ep.model ILIKE $${paramIndex})`;
             queryParams.push(`%${search}%`);
             paramIndex++;
@@ -347,6 +384,58 @@ const updateStatus = async (req, res) => {
     }
 };
 
+// 13. Get Similar Listings
+const getSimilarListings = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const postResult = await db.query('SELECT category, brand, condition FROM equipment_posts WHERE id = $1', [id]);
+        if (postResult.rows.length === 0) return sendError(res, 'Equipment post not found', 404);
+        
+        const { category, brand, condition } = postResult.rows[0];
+        
+        const queryStr = `
+            SELECT ep.*, 
+            (SELECT json_agg(json_build_object('id', ei.id, 'image_url', ei.image_url)) FROM equipment_images ei WHERE ei.equipment_post_id = ep.id) as images
+            FROM equipment_posts ep
+            WHERE ep.status = 'Active' AND ep.id != $1 AND ep.category = $2
+            ORDER BY 
+                CASE WHEN ep.brand = $3 THEN 1 ELSE 0 END DESC,
+                CASE WHEN ep.condition = $4 THEN 1 ELSE 0 END DESC,
+                ep.created_at DESC
+            LIMIT 5;
+        `;
+        const result = await db.query(queryStr, [id, category, brand, condition]);
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        sendError(res, 'Server error while fetching similar listings', 500);
+    }
+};
+
+// 14. Get Popular Tags
+const getPopularTags = async (req, res) => {
+    try {
+        const result = await db.query('SELECT tag, search_count FROM popular_tags ORDER BY search_count DESC LIMIT 20');
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        sendError(res, 'Server error while fetching popular tags', 500);
+    }
+};
+
+// 15. Get Engagement Metrics for Post
+const getEngagementMetrics = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query('SELECT view_count, save_count, inquiry_count FROM engagement_metrics WHERE equipment_post_id = $1', [id]);
+        res.json(result.rows[0] || { view_count: 0, save_count: 0, inquiry_count: 0 });
+    } catch (error) {
+        console.error(error);
+        sendError(res, 'Server error while fetching engagement metrics', 500);
+    }
+};
+
 module.exports = {
     createEquipment,
     updateEquipment,
@@ -354,5 +443,8 @@ module.exports = {
     getSingleEquipment,
     listEquipment,
     getMyEquipment,
-    updateStatus
+    updateStatus,
+    getSimilarListings,
+    getPopularTags,
+    getEngagementMetrics
 };

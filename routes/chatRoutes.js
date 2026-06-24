@@ -22,4 +22,16 @@ router.post(
     chatController.sendMessage
 );
 
+router.get(
+    '/rooms',
+    authMiddleware,
+    chatController.getRooms
+);
+
+router.put(
+    '/messages/:messageId/read',
+    authMiddleware,
+    chatController.markMessageAsRead
+);
+
 module.exports = router;
