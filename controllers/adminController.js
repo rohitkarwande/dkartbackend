@@ -424,3 +424,39 @@ module.exports = {
     approveKyc,
     rejectKyc,
 };
+
+// ─────────────────────────────────────────────────────────────
+// 7. Admin Notifications
+// ─────────────────────────────────────────────────────────────
+const getAdminNotifications = async (req, res) => {
+    try {
+        const adminId = req.user.id;
+        const result = await db.query(
+            "SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50",
+            [adminId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error fetching notifications' });
+    }
+};
+
+const markNotificationRead = async (req, res) => {
+    try {
+        const adminId = req.user.id;
+        const { id } = req.params;
+        const result = await db.query(
+            "UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2 RETURNING *",
+            [id, adminId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Notification not found' });
+        res.json({ message: 'Notification marked as read', notification: result.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error marking notification as read' });
+    }
+};
+
+module.exports.getAdminNotifications = getAdminNotifications;
+module.exports.markNotificationRead = markNotificationRead;

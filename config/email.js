@@ -40,7 +40,7 @@ const sendEmailOTP = async (to, otp) => {
     }
 };
 
-const sendTransactionalEmail = async (to, subject, message) => {
+const sendTransactionalEmail = async (to, subject, message, html = null) => {
     if (!transporter) {
         console.log(`[MOCK EMAIL] Sending Transactional Email to ${to} | Subject: ${subject}`);
         return true;
@@ -52,7 +52,7 @@ const sendTransactionalEmail = async (to, subject, message) => {
             to: to,
             subject: subject,
             text: message,
-            html: `<p>${message}</p>`
+            html: html || `<p>${message}</p>`
         });
         console.log(`Transactional email sent successfully to ${to}`);
         return true;

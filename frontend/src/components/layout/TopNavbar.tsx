@@ -14,6 +14,10 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
+import { AdminNotifications } from "./AdminNotifications";
+
+import { UserLocation } from "./UserLocation";
+
 export function TopNavbar() {
   const { data: user, isLoading } = useAuth();
   const logout = useLogout();
@@ -27,6 +31,7 @@ export function TopNavbar() {
   };
 
   const isSeller = user?.role === 'seller' || user?.role === 'admin';
+  const isAdmin = user?.role === 'admin';
   const initials = user?.first_name 
     ? user.first_name.charAt(0).toUpperCase() 
     : (user?.email ? user.email.charAt(0).toUpperCase() : 'U');
@@ -36,15 +41,20 @@ export function TopNavbar() {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4 md:gap-6">
           
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="bg-emerald-600 p-1.5 rounded-lg">
-              <span className="text-white font-bold text-lg leading-none block">DK</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight hidden sm:block text-slate-900">
-              D<span className="text-emerald-600">Kart</span>
-            </span>
-          </Link>
+          <div className="flex items-center">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <div className="bg-emerald-600 p-1.5 rounded-lg">
+                <span className="text-white font-bold text-lg leading-none block">DK</span>
+              </div>
+              <span className="font-bold text-xl tracking-tight hidden sm:block text-slate-900">
+                D<span className="text-emerald-600">Kart</span>
+              </span>
+            </Link>
+
+            {/* User Location */}
+            {user && <UserLocation />}
+          </div>
 
           {/* Global Search */}
           <div className="flex-1 max-w-2xl hidden md:block">
@@ -64,7 +74,7 @@ export function TopNavbar() {
             {/* Sell Equipment CTA */}
             <Button 
               onClick={() => navigate(isSeller ? '/sell' : user ? '/kyc' : '/signup')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm hidden sm:flex"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm hidden sm:flex mr-2"
               size="sm"
             >
               <PlusCircle className="mr-2 h-4 w-4" />

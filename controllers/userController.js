@@ -4,7 +4,7 @@ const getProfile = async (req, res) => {
     try {
         const result = await db.query(
             `SELECT u.id, u.email, u.phone, u.is_verified, u.created_at, u.role,
-                    p.first_name, p.last_name, p.company_name, p.avatar_url, p.bio, p.age, p.profession
+                    p.first_name, p.last_name, p.company_name, p.avatar_url, p.bio, p.age, p.profession, p.location
              FROM users u
              LEFT JOIN user_profiles p ON u.id = p.user_id
              WHERE u.id = $1`,
@@ -19,11 +19,11 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
     try {
-        const { first_name, last_name, company_name, avatar_url, bio, age, profession } = req.body;
+        const { first_name, last_name, company_name, avatar_url, bio, age, profession, location } = req.body;
         
         const result = await db.query(
-            `INSERT INTO user_profiles (user_id, first_name, last_name, company_name, avatar_url, bio, age, profession)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO user_profiles (user_id, first_name, last_name, company_name, avatar_url, bio, age, profession, location)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              ON CONFLICT (user_id) DO UPDATE 
              SET first_name = EXCLUDED.first_name,
                  last_name = EXCLUDED.last_name,
@@ -32,9 +32,10 @@ const updateProfile = async (req, res) => {
                  bio = EXCLUDED.bio,
                  age = EXCLUDED.age,
                  profession = EXCLUDED.profession,
+                 location = EXCLUDED.location,
                  updated_at = CURRENT_TIMESTAMP
              RETURNING *`,
-            [req.user.id, first_name, last_name, company_name, avatar_url, bio, age, profession]
+            [req.user.id, first_name, last_name, company_name, avatar_url, bio, age, profession, location]
         );
         res.json({ message: 'Profile updated', profile: result.rows[0] });
     } catch (error) {
@@ -81,6 +82,13 @@ const submitKyc = async (req, res) => {
                 [req.user.id, company_name.trim()]
             );
         }
+
+        // Notify Admins (socket + email)
+        const { notifyAdmins } = require('../services/adminNotificationService');
+        notifyAdmins(req.io, 'KYC_SUBMITTED', `User #${req.user.id} submitted a new KYC document`, result.rows[0].id);
+
+        const { emailKycSubmission } = require('../services/emailService');
+        emailKycSubmission(req.user.id, req.user.email || req.user.phone);
 
         res.json({ message: 'KYC submitted successfully. Pending admin review.', kyc: result.rows[0] });
     } catch (error) {

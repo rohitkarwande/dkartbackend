@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Mail, Phone, ShieldCheck, ArrowRight, ArrowLeft } from "lucide-react";
+import { Activity, Mail, Phone, ShieldCheck, ArrowRight, ArrowLeft, MapPin, Briefcase } from "lucide-react";
 import { api } from "@/lib/api";
 
 export function AuthPage() {
@@ -17,8 +17,11 @@ export function AuthPage() {
   
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [step, setStep] = useState<"input" | "otp">("input");
+  const [step, setStep] = useState<"input" | "otp" | "onboarding">("input");
   const [userId, setUserId] = useState<number | null>(null);
+  
+  const [profession, setProfession] = useState("");
+  const [userLocation, setUserLocation] = useState("");
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,6 +32,18 @@ export function AuthPage() {
   useEffect(() => {
     if (step === "otp" && otpRefs.current[0]) {
       otpRefs.current[0].focus();
+    }
+    
+    // Auto-detect location when reaching onboarding step
+    if (step === "onboarding" && !userLocation) {
+      fetch("https://ipapi.co/json/")
+        .then(res => res.json())
+        .then(data => {
+          if (data.city) {
+            setUserLocation(data.city);
+          }
+        })
+        .catch(err => console.error("Auto-detect location failed:", err));
     }
   }, [step]);
 
@@ -78,13 +93,39 @@ export function AuthPage() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
       
-      // Navigate and force reload to update navbar state
-      navigate("/");
-      window.location.href = "/";
+      if (!res.data.user.profession || !res.data.user.location) {
+        setStep("onboarding");
+      } else {
+        // Navigate and force reload to update navbar state
+        navigate("/");
+        window.location.href = "/";
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || "Invalid OTP");
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOnboardingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await api.put("/user/profile", {
+        profession,
+        location: userLocation,
+      });
+      // Fetch latest profile and update user in local storage
+      const profileRes = await api.get("/user/profile");
+      localStorage.setItem("user", JSON.stringify(profileRes.data));
+
+      navigate("/");
+      window.location.href = "/";
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Failed to save details");
     } finally {
       setLoading(false);
     }
@@ -241,7 +282,7 @@ export function AuthPage() {
                 </Button>
               </form>
             </div>
-          ) : (
+          ) : step === "otp" ? (
             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
               <button 
                 onClick={() => setStep("input")}
@@ -296,7 +337,79 @@ export function AuthPage() {
                 </Button>
               </form>
             </div>
-          )}
+          ) : step === "onboarding" ? (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Almost there!</h2>
+                <p className="text-slate-500 mt-2">
+                  Tell us a bit about yourself so we can personalize your experience.
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-6 p-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleOnboardingSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="profession" className="text-slate-700">Profession / Role</Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Briefcase className="h-5 w-5" />
+                    </div>
+                    <select
+                      id="profession"
+                      value={profession}
+                      onChange={(e) => setProfession(e.target.value)}
+                      required
+                      className="flex h-14 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 pl-11 text-lg ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="" disabled>Select your profession</option>
+                      <option value="Doctor">Doctor</option>
+                      <option value="Clinic Owner">Clinic Owner</option>
+                      <option value="Hospital Admin">Hospital Admin</option>
+                      <option value="Dealer">Dealer</option>
+                      <option value="Just to explore">Just to explore</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="location" className="text-slate-700">City / Location</Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <Input
+                      id="location"
+                      placeholder="e.g. Mumbai, Delhi"
+                      value={userLocation}
+                      onChange={(e) => setUserLocation(e.target.value)}
+                      required
+                      className="h-14 bg-slate-50/50 border-slate-200 focus-visible:ring-emerald-500 text-lg pl-11"
+                    />
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={loading || !profession || !userLocation} 
+                  className="w-full h-14 text-lg font-semibold bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 rounded-xl"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Saving...
+                    </div>
+                  ) : (
+                    "Complete Registration"
+                  )}
+                </Button>
+              </form>
+            </div>
+          ) : null}
 
           <div className="mt-8 text-center text-sm text-slate-500">
             By continuing, you agree to DKart's <br/>

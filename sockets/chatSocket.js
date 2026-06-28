@@ -25,6 +25,16 @@ module.exports = (io) => {
         // Admin controllers call: io.to(`user_${userId}`).emit('role_updated', ...)
         socket.join(`user_${socket.user.id}`);
 
+        // Fetch latest role from DB to avoid stale JWT issues
+        db.query("SELECT role FROM users WHERE id = $1", [socket.user.id])
+            .then(result => {
+                if (result.rows.length > 0 && result.rows[0].role === 'admin') {
+                    socket.join('admin_room');
+                    console.log(`Admin ${socket.user.id} joined admin_room`);
+                }
+            })
+            .catch(err => console.error("Error fetching user role for socket:", err));
+
         // ── Chat: Join a chat room ───────────────────────────────────────────
         socket.on('join_room', (roomId) => {
             // Check if user is part of this room (for security)

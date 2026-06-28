@@ -65,6 +65,13 @@ const createEquipment = async (req, res) => {
             images = imgResults.map(r => r.rows[0]);
         }
 
+        // Notify Admins (socket + email)
+        const { notifyAdmins } = require('../services/adminNotificationService');
+        notifyAdmins(req.io, 'NEW_LISTING', `A new equipment listing was created: ${title}`, post.id);
+
+        const { emailNewEquipmentListing } = require('../services/emailService');
+        emailNewEquipmentListing(req.user?.email || req.user?.phone, req.user?.id, title, post.id);
+
         res.status(201).json({ message: 'Equipment post created successfully', post, images });
     } catch (error) {
         console.error(error);

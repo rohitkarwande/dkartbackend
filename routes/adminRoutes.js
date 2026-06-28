@@ -36,5 +36,9 @@ router.get('/kyc/:userId', adminController.getKycDetails);
 router.post('/kyc/:userId/approve', auditLog('APPROVE_KYC', 'kyc_document'), adminController.approveKyc);
 router.post('/kyc/:userId/reject', auditLog('REJECT_KYC', 'kyc_document'), adminController.rejectKyc);
 
+// 7. Admin Notifications
+router.get('/notifications', adminController.getAdminNotifications);
+router.put('/notifications/:id/read', adminController.markNotificationRead);
+
 module.exports = router;
 

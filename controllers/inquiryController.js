@@ -49,6 +49,10 @@ const createInquiry = async (req, res) => {
             [buyerId, equipment_post_id]
         );
 
+        // Email seller and admin about new inquiry
+        const { emailNewInquiry } = require('../services/emailService');
+        emailNewInquiry(sellerId, req.user?.email || req.user?.phone, equipment.rows[0].title);
+
         res.status(201).json({ message: 'Inquiry created successfully', inquiry: inquiry.rows[0] });
     } catch (error) {
         console.error(error);
@@ -159,6 +163,16 @@ const updateInquiryStatus = async (req, res) => {
                 `UPDATE equipment_posts SET status = 'Sold', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
                 [result.rows[0].equipment_post_id]
             );
+
+            // Notify Admins
+            const { notifyAdmins } = require('../services/adminNotificationService');
+            notifyAdmins(req.io, 'DEAL_LOCKED', `A deal has been locked/closed for Equipment #${result.rows[0].equipment_post_id}`, result.rows[0].equipment_post_id);
+
+            // Email seller, buyer, and admins about deal
+            const equipmentTitleRes = await db.query('SELECT title FROM equipment_posts WHERE id = $1', [result.rows[0].equipment_post_id]);
+            const equipmentTitle = equipmentTitleRes.rows[0]?.title || 'Equipment';
+            const { emailDealLocked } = require('../services/emailService');
+            emailDealLocked(result.rows[0].seller_id, result.rows[0].buyer_id, equipmentTitle, result.rows[0].equipment_post_id);
         }
 
         // Real-time notification to buyer when deal is locked

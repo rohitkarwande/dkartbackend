@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useAdminStats } from "@/hooks/useAdminKyc";
+import { AdminNotifications } from "@/components/layout/AdminNotifications";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
@@ -129,8 +130,10 @@ export function AdminLayout() {
         </aside>
 
         {/* ── Main Content ────────────────────────────────────────────────── */}
-        <main className="flex-1 min-h-screen overflow-auto">
-          <Outlet />
+        <main className="flex-1 min-h-screen overflow-auto flex flex-col">
+          <div className="p-8 flex-1">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

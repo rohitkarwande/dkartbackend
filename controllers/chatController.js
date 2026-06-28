@@ -28,6 +28,10 @@ const createRoom = async (req, res) => {
             [inquiry_id]
         );
 
+        // Notify Admins
+        const { notifyAdmins } = require('../services/adminNotificationService');
+        notifyAdmins(req.io, 'NEW_CHAT_ROOM', `A new chat room was created for Inquiry #${inquiry_id}`, inquiry_id);
+
         res.status(201).json({ message: 'Chat room created', room: room.rows[0] });
     } catch (error) {
         console.error(error);
@@ -74,6 +78,30 @@ const sendMessage = async (req, res) => {
         // Broadcast to socket room
         if (req.io) {
             req.io.to(`room_${id}`).emit('receive_message', savedMessage);
+        }
+
+        // Email the OTHER participant in this chat room (not the sender)
+        try {
+            const roomInfo = await db.query(
+                `SELECT i.buyer_id, i.seller_id, ep.title as equipment_title,
+                        sender.email as sender_email,
+                        COALESCE(sp.first_name, sender.email, sender.phone) as sender_name
+                 FROM chat_rooms cr
+                 JOIN inquiries i ON cr.inquiry_id = i.id
+                 JOIN equipment_posts ep ON i.equipment_post_id = ep.id
+                 JOIN users sender ON sender.id = $2
+                 LEFT JOIN user_profiles sp ON sp.user_id = $2
+                 WHERE cr.id = $1`,
+                [id, req.user.id]
+            );
+            if (roomInfo.rows.length > 0) {
+                const { buyer_id, seller_id, equipment_title, sender_name } = roomInfo.rows[0];
+                const recipientId = req.user.id === buyer_id ? seller_id : buyer_id;
+                const { emailNewMessage } = require('../services/emailService');
+                emailNewMessage(recipientId, sender_name || 'A DKart user', message, equipment_title);
+            }
+        } catch (emailErr) {
+            console.error('Failed to send message notification email:', emailErr);
         }
 
         res.status(201).json({

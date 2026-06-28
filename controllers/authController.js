@@ -103,14 +103,21 @@ const verifyOtp = async (req, res) => {
     // OTP matches, clear it from cache
     await cache.del(`otp:${userId}`);
 
+    // Check if user was already verified before we update
+    const previousState = await db.query("SELECT is_verified FROM users WHERE id = $1", [userId]);
+    const wasVerified = previousState.rows[0]?.is_verified;
+
     // Mark user as verified
     await db.query("UPDATE users SET is_verified = TRUE WHERE id = $1", [
       userId,
     ]);
 
-    // Fetch user to generate token
+    // Fetch user to generate token and return profile state
     const result = await db.query(
-      "SELECT id, email, phone, role FROM users WHERE id = $1",
+      `SELECT u.id, u.email, u.phone, u.role, p.profession, p.location
+       FROM users u 
+       LEFT JOIN user_profiles p ON u.id = p.user_id 
+       WHERE u.id = $1`,
       [userId],
     );
     const user = result.rows[0];
@@ -120,6 +127,16 @@ const verifyOtp = async (req, res) => {
       return res
         .status(500)
         .json({ error: "Server error during OTP verification" });
+    }
+
+    // Trigger admin notification if new user just verified
+    if (!wasVerified) {
+        const { notifyAdmins } = require('../services/adminNotificationService');
+        notifyAdmins(req.io, 'NEW_USER', `A new user has registered with ${user.email || user.phone}`, user.id);
+
+        // Email all admins about the new registration
+        const { emailNewRegistration } = require('../services/emailService');
+        emailNewRegistration(user.email || user.phone, user.id);
     }
 
     const token = jwt.sign(
