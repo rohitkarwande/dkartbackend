@@ -165,12 +165,12 @@ export function DealFunnel() {
   ];
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 pb-20 md:pb-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <TrendingUp className="h-6 w-6 text-violet-400" />
+          <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            <TrendingUp className="h-6 w-6 text-violet-400 shrink-0" />
             Inquiry → Deal Funnel
           </h1>
           <p className="text-slate-400 mt-1 text-sm">
@@ -178,12 +178,12 @@ export function DealFunnel() {
           </p>
         </div>
         {/* Period toggle */}
-        <div className="flex gap-1 bg-slate-800 rounded-xl p-1">
+        <div className="flex gap-1 bg-slate-800 rounded-xl p-1 overflow-x-auto hide-scrollbar self-start sm:self-auto max-w-full">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               onClick={() => setPeriod(p.value)}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                 period === p.value
                   ? "bg-violet-600 text-white"
                   : "text-slate-400 hover:text-white"

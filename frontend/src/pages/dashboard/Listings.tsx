@@ -245,6 +245,17 @@ export function Listings() {
                             Mark Sold
                           </Button>
                         )}
+                        {item.status === 'Sold' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                            onClick={() => updateStatus.mutate({ id: item.id, status: 'Active' })}
+                            disabled={updateStatus.isPending}
+                          >
+                            Mark Available
+                          </Button>
+                        )}
                         {confirmDelete === item.id ? (
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-red-600">Sure?</span>

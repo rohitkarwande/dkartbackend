@@ -5,7 +5,7 @@ const db = require('../config/db');
 // ─────────────────────────────────────────────────────────────
 const getDashboardStats = async (req, res) => {
     try {
-        const [usersCount, sellersCount, listingsCount, inquiriesCount, pendingKycCount, totalRevenueRows] =
+        const [usersCount, sellersCount, listingsCount, inquiriesCount, pendingKycCount, totalRevenueRows, professionRows] =
             await Promise.all([
                 db.query("SELECT COUNT(*) FROM users WHERE role = 'user' OR role = 'buyer'"),
                 db.query("SELECT COUNT(*) FROM users WHERE role = 'seller'"),
@@ -13,7 +13,13 @@ const getDashboardStats = async (req, res) => {
                 db.query("SELECT COUNT(*) FROM inquiries WHERE status != 'Resolved' AND status != 'Closed'"),
                 db.query("SELECT COUNT(*) FROM kyc_documents WHERE status = 'Pending'"),
                 db.query("SELECT COUNT(*) FROM kyc_documents WHERE status = 'Approved'"),
+                db.query("SELECT profession, COUNT(*) FROM user_profiles WHERE profession IS NOT NULL GROUP BY profession"),
             ]);
+        
+        const professions = professionRows.rows.reduce((acc, row) => {
+            acc[row.profession] = parseInt(row.count, 10);
+            return acc;
+        }, {});
 
         res.json({
             totalUsers: parseInt(usersCount.rows[0].count, 10),
@@ -22,6 +28,7 @@ const getDashboardStats = async (req, res) => {
             activeInquiries: parseInt(inquiriesCount.rows[0].count, 10),
             pendingKyc: parseInt(pendingKycCount.rows[0].count, 10),
             approvedKyc: parseInt(totalRevenueRows.rows[0].count, 10),
+            professions,
         });
     } catch (error) {
         console.error(error);
@@ -406,6 +413,97 @@ const rejectKyc = async (req, res) => {
     }
 };
 
+// ─────────────────────────────────────────────────────────────
+// Reports Export
+// ─────────────────────────────────────────────────────────────
+const generateCSV = (data) => {
+    if (!data || data.length === 0) return '';
+    const headers = Object.keys(data[0]);
+    const escapeCsv = (str) => {
+        if (str === null || str === undefined) return '';
+        const s = String(str);
+        if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+            return `"${s.replace(/"/g, '""')}"`;
+        }
+        return s;
+    };
+    const csvRows = [headers.join(',')];
+    for (const row of data) {
+        csvRows.push(headers.map(header => escapeCsv(row[header])).join(','));
+    }
+    return csvRows.join('\n');
+};
+
+const getReportCsv = async (req, res) => {
+    try {
+        const { type } = req.query;
+        let query = '';
+        let filename = 'report.csv';
+        let data = [];
+
+        if (type === 'summary') {
+            const [usersCount, sellersCount, listingsCount, inquiriesCount, pendingKycCount, approvedKycCount] =
+                await Promise.all([
+                    db.query("SELECT COUNT(*) FROM users WHERE role = 'user' OR role = 'buyer'"),
+                    db.query("SELECT COUNT(*) FROM users WHERE role = 'seller'"),
+                    db.query("SELECT COUNT(*) FROM equipment_posts"),
+                    db.query("SELECT COUNT(*) FROM inquiries WHERE status != 'Resolved' AND status != 'Closed'"),
+                    db.query("SELECT COUNT(*) FROM kyc_documents WHERE status = 'Pending'"),
+                    db.query("SELECT COUNT(*) FROM kyc_documents WHERE status = 'Approved'"),
+                ]);
+            data = [{
+                total_buyers: usersCount.rows[0].count,
+                total_sellers: sellersCount.rows[0].count,
+                total_listings: listingsCount.rows[0].count,
+                active_inquiries: inquiriesCount.rows[0].count,
+                pending_kyc: pendingKycCount.rows[0].count,
+                approved_kyc: approvedKycCount.rows[0].count,
+                exported_at: new Date().toISOString()
+            }];
+            filename = 'dashboard_summary.csv';
+        } else if (type === 'buyers') {
+            const result = await db.query(`
+                SELECT u.id, u.email, u.phone, u.status, u.created_at, p.first_name, p.last_name 
+                FROM users u 
+                LEFT JOIN user_profiles p ON u.id = p.user_id 
+                WHERE u.role IN ('user', 'buyer')
+                ORDER BY u.created_at DESC
+            `);
+            data = result.rows;
+            filename = 'buyers_list.csv';
+        } else if (type === 'sellers') {
+            const result = await db.query(`
+                SELECT u.id, u.email, u.phone, u.status, u.created_at, p.first_name, p.last_name, p.company_name 
+                FROM users u 
+                LEFT JOIN user_profiles p ON u.id = p.user_id 
+                WHERE u.role = 'seller'
+                ORDER BY u.created_at DESC
+            `);
+            data = result.rows;
+            filename = 'sellers_list.csv';
+        } else if (type === 'kyc') {
+            const result = await db.query(`
+                SELECT k.id, k.user_id, u.email, k.document_type, k.status, k.submitted_at, k.reviewed_at 
+                FROM kyc_documents k 
+                JOIN users u ON k.user_id = u.id 
+                ORDER BY k.submitted_at DESC
+            `);
+            data = result.rows;
+            filename = 'kyc_applications.csv';
+        } else {
+            return res.status(400).json({ error: 'Invalid report type' });
+        }
+
+        const csvString = generateCSV(data);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(csvString);
+    } catch (error) {
+        console.error('Error generating CSV report:', error);
+        res.status(500).json({ error: 'Server error generating report' });
+    }
+};
+
 module.exports = {
     getDashboardStats,
     getAllUsers,
@@ -423,6 +521,7 @@ module.exports = {
     getKycDetails,
     approveKyc,
     rejectKyc,
+    getReportCsv,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -460,3 +559,72 @@ const markNotificationRead = async (req, res) => {
 
 module.exports.getAdminNotifications = getAdminNotifications;
 module.exports.markNotificationRead = markNotificationRead;
+
+// ─────────────────────────────────────────────────────────────
+// 8. Security & IP Tracking
+// ─────────────────────────────────────────────────────────────
+const getLoginHistory = async (req, res) => {
+    try {
+        const { search } = req.query;
+        let query = `
+            SELECT lh.*, u.email, u.phone, u.role
+            FROM login_history lh
+            JOIN users u ON lh.user_id = u.id
+        `;
+        const params = [];
+        if (search) {
+            params.push(`%${search}%`);
+            query += ` WHERE u.email ILIKE $1 OR u.phone ILIKE $1 OR lh.ip_address ILIKE $1`;
+        }
+        query += ` ORDER BY lh.created_at DESC LIMIT 100`;
+
+        const result = await db.query(query, params);
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error fetching login history' });
+    }
+};
+
+const getIpBlacklist = async (req, res) => {
+    try {
+        const result = await db.query("SELECT * FROM ip_blacklist ORDER BY created_at DESC");
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error fetching IP blacklist' });
+    }
+};
+
+const addIpToBlacklist = async (req, res) => {
+    try {
+        const { ip_address, reason } = req.body;
+        if (!ip_address) return res.status(400).json({ error: 'IP address is required' });
+        
+        const result = await db.query(
+            "INSERT INTO ip_blacklist (ip_address, reason) VALUES ($1, $2) ON CONFLICT (ip_address) DO UPDATE SET reason = $2 RETURNING *",
+            [ip_address, reason || 'Manually blacklisted by admin']
+        );
+        res.status(201).json({ message: 'IP added to blacklist', record: result.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error adding IP to blacklist' });
+    }
+};
+
+const removeIpFromBlacklist = async (req, res) => {
+    try {
+        const { ip } = req.params;
+        const result = await db.query("DELETE FROM ip_blacklist WHERE ip_address = $1 RETURNING *", [ip]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'IP not found in blacklist' });
+        res.json({ message: 'IP removed from blacklist', record: result.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error removing IP from blacklist' });
+    }
+};
+
+module.exports.getLoginHistory = getLoginHistory;
+module.exports.getIpBlacklist = getIpBlacklist;
+module.exports.addIpToBlacklist = addIpToBlacklist;
+module.exports.removeIpFromBlacklist = removeIpFromBlacklist;

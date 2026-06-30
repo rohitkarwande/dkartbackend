@@ -31,6 +31,7 @@ export interface AdminDashboardStats {
   activeInquiries: number;
   pendingKyc: number;
   approvedKyc: number;
+  professions?: Record<string, number>;
 }
 
 export interface AdminUser {
@@ -153,6 +154,76 @@ export function useReactivateUser() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+}
+
+// ─── Security Hooks ──────────────────────────────────────────────────────────
+
+export interface LoginHistoryRecord {
+  id: number;
+  user_id: number;
+  ip_address: string;
+  user_agent: string;
+  created_at: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+}
+
+export interface IpBlacklistRecord {
+  id: number;
+  ip_address: string;
+  reason: string;
+  created_at: string;
+}
+
+export function useLoginHistory(search?: string) {
+  return useQuery({
+    queryKey: ['admin', 'security', 'login-history', search],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      const res = await api.get(`/admin/login-history?${params.toString()}`);
+      return res.data as LoginHistoryRecord[];
+    },
+    staleTime: 1000 * 30,
+  });
+}
+
+export function useIpBlacklist() {
+  return useQuery({
+    queryKey: ['admin', 'security', 'ip-blacklist'],
+    queryFn: async () => {
+      const res = await api.get('/admin/ip-blacklist');
+      return res.data as IpBlacklistRecord[];
+    },
+    staleTime: 1000 * 30,
+  });
+}
+
+export function useAddIpToBlacklist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { ip_address: string; reason: string }) => {
+      const res = await api.post('/admin/ip-blacklist', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'security', 'ip-blacklist'] });
+    },
+  });
+}
+
+export function useRemoveIpFromBlacklist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ip: string) => {
+      const res = await api.delete(`/admin/ip-blacklist/${encodeURIComponent(ip)}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'security', 'ip-blacklist'] });
     },
   });
 }

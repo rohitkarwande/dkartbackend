@@ -234,7 +234,7 @@ const listEquipment = async (req, res) => {
             (SELECT json_agg(json_build_object('id', ei.id, 'image_url', ei.image_url)) FROM equipment_images ei WHERE ei.equipment_post_id = ep.id) as images
             FROM equipment_posts ep
             JOIN users u ON ep.seller_id = u.id
-            WHERE ep.status = 'Active'`;
+            WHERE ep.status IN ('Active', 'Sold')`;
         const queryParams = [];
         let paramIndex = 1;
 
@@ -262,7 +262,9 @@ const listEquipment = async (req, res) => {
             queryStr += ` AND ep.price <= $${paramIndex++}`;
             queryParams.push(maxPrice);
         }
+        let isSearchActive = false;
         if (search) {
+            isSearchActive = true;
             // Track search analytics
             const userId = req.user ? req.user.id : null;
             await db.query(`INSERT INTO search_analytics (user_id, search_query) VALUES ($1, $2)`, [userId, search]);
@@ -279,16 +281,30 @@ const listEquipment = async (req, res) => {
                 );
             }
 
-            queryStr += ` AND (ep.title ILIKE $${paramIndex} OR ep.brand ILIKE $${paramIndex} OR ep.model ILIKE $${paramIndex})`;
-            queryParams.push(`%${search}%`);
+            // Prepare prefix matching tsquery (e.g. "ECG mach" -> "ECG:* & mach:*")
+            const searchTerms = search.trim().replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(t => t.length > 0);
+            const tsQueryStr = searchTerms.map(term => `${term}:*`).join(' & ');
+
+            queryStr += ` AND ep.search_vector @@ to_tsquery('english', $${paramIndex})`;
+            queryParams.push(tsQueryStr);
             paramIndex++;
         }
 
         // Sorting
-        if (sort === 'oldest') queryStr += ` ORDER BY ep.created_at ASC`;
-        else if (sort === 'price low to high') queryStr += ` ORDER BY ep.price ASC NULLS LAST`;
-        else if (sort === 'price high to low') queryStr += ` ORDER BY ep.price DESC NULLS LAST`;
-        else queryStr += ` ORDER BY ep.created_at DESC`; // latest default
+        if (sort === 'oldest') {
+            queryStr += ` ORDER BY ep.created_at ASC`;
+        } else if (sort === 'price low to high') {
+            queryStr += ` ORDER BY ep.price ASC NULLS LAST`;
+        } else if (sort === 'price high to low') {
+            queryStr += ` ORDER BY ep.price DESC NULLS LAST`;
+        } else {
+            // Default sort: if searching, sort by relevance. Otherwise, sort by latest.
+            if (isSearchActive) {
+                queryStr += ` ORDER BY ts_rank(ep.search_vector, to_tsquery('english', $${paramIndex - 1})) DESC, ep.created_at DESC`;
+            } else {
+                queryStr += ` ORDER BY ep.created_at DESC`;
+            }
+        }
 
         // Pagination
         const offset = (page - 1) * limit;
@@ -298,7 +314,7 @@ const listEquipment = async (req, res) => {
         const result = await db.query(queryStr, queryParams);
         
         // Count total for pagination
-        let countQuery = `SELECT COUNT(*) FROM equipment_posts ep WHERE ep.status = 'Active'`;
+        let countQuery = `SELECT COUNT(*) FROM equipment_posts ep WHERE ep.status IN ('Active', 'Sold')`;
         const countParams = [];
         let countIndex = 1;
         if (category) { countQuery += ` AND ep.category = $${countIndex++}`; countParams.push(category); }
@@ -308,8 +324,11 @@ const listEquipment = async (req, res) => {
         if (minPrice) { countQuery += ` AND ep.price >= $${countIndex++}`; countParams.push(minPrice); }
         if (maxPrice) { countQuery += ` AND ep.price <= $${countIndex++}`; countParams.push(maxPrice); }
         if (search) {
-            countQuery += ` AND (ep.title ILIKE $${countIndex} OR ep.brand ILIKE $${countIndex} OR ep.model ILIKE $${countIndex})`;
-            countParams.push(`%${search}%`);
+            const searchTerms = search.trim().replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(t => t.length > 0);
+            const tsQueryStr = searchTerms.map(term => `${term}:*`).join(' & ');
+            countQuery += ` AND ep.search_vector @@ to_tsquery('english', $${countIndex})`;
+            countParams.push(tsQueryStr);
+            countIndex++;
         }
 
         const countResult = await db.query(countQuery, countParams);
@@ -406,7 +425,7 @@ const getSimilarListings = async (req, res) => {
             SELECT ep.*, 
             (SELECT json_agg(json_build_object('id', ei.id, 'image_url', ei.image_url)) FROM equipment_images ei WHERE ei.equipment_post_id = ep.id) as images
             FROM equipment_posts ep
-            WHERE ep.status = 'Active' AND ep.id != $1 AND ep.category = $2
+            WHERE ep.status IN ('Active', 'Sold') AND ep.id != $1 AND ep.category = $2
             ORDER BY 
                 CASE WHEN ep.brand = $3 THEN 1 ELSE 0 END DESC,
                 CASE WHEN ep.condition = $4 THEN 1 ELSE 0 END DESC,

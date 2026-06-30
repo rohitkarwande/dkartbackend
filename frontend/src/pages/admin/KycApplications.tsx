@@ -441,11 +441,11 @@ export function KycApplications() {
     app.company_name || app.email || app.phone || `User #${app.user_id}`;
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-[calc(100vh-64px)] md:h-screen relative overflow-hidden">
       {/* Left panel: list */}
-      <div className={`flex flex-col ${selectedApp ? "w-1/2" : "w-full"} transition-all duration-300`}>
+      <div className={`flex flex-col ${selectedApp ? "hidden md:flex md:w-1/2" : "w-full"} transition-all duration-300`}>
         {/* Header */}
-        <div className="p-6 border-b border-slate-800 space-y-4">
+        <div className="p-4 md:p-6 border-b border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-white">KYC Applications</h1>
             <span className="text-sm text-slate-500">{apps?.length ?? 0} results</span>
@@ -463,12 +463,12 @@ export function KycApplications() {
           </div>
 
           {/* Status Tabs */}
-          <div className="flex gap-1 bg-slate-800/50 rounded-xl p-1">
+          <div className="flex gap-1 bg-slate-800/50 rounded-xl p-1 overflow-x-auto hide-scrollbar">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setSearchParams(tab.key === "all" ? {} : { status: tab.key })}
-                className={`flex-1 text-xs font-semibold py-2 px-3 rounded-lg transition-all ${
+                className={`flex-1 text-xs font-semibold py-2 px-3 rounded-lg transition-all whitespace-nowrap ${
                   statusFilter === tab.key
                     ? "bg-slate-700 text-white"
                     : "text-slate-400 hover:text-white"
@@ -493,12 +493,12 @@ export function KycApplications() {
               <p className="text-sm mt-1">Try a different filter</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-800">
+            <div className="divide-y divide-slate-800 pb-16 md:pb-0">
               {apps.map((app) => (
                 <button
                   key={app.kyc_id}
                   onClick={() => setSelectedApp(app)}
-                  className={`w-full text-left p-5 hover:bg-slate-800/50 transition-colors group ${
+                  className={`w-full text-left p-4 md:p-5 hover:bg-slate-800/50 transition-colors group ${
                     selectedApp?.kyc_id === app.kyc_id ? "bg-slate-800/80 border-l-2 border-violet-500" : ""
                   }`}
                 >
@@ -510,7 +510,7 @@ export function KycApplications() {
                       <p className="text-xs text-slate-500 truncate">
                         {app.email || app.phone}
                       </p>
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span className="text-xs text-slate-600 bg-slate-800 px-2 py-0.5 rounded font-medium">
                           {app.document_type?.replace(/_/g, " ")}
                         </span>
@@ -533,7 +533,7 @@ export function KycApplications() {
 
       {/* Right panel: detail */}
       {selectedApp && (
-        <div className="w-1/2 border-l border-slate-800">
+        <div className="w-full md:w-1/2 border-l border-slate-800 absolute inset-0 z-50 md:static md:z-auto bg-slate-900 transition-all duration-300 pb-16 md:pb-0">
           <KycDetailPanel
             app={selectedApp}
             onClose={() => setSelectedApp(null)}

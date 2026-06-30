@@ -204,6 +204,28 @@ const emailKycSubmission = (userId, userEmail) => {
     `);
 };
 
+const emailNewLoginAlert = async (userEmail, ipAddress, userAgent) => {
+    if (!userEmail) return;
+    
+    const subject = 'Security Alert: New Login Detected';
+    const html = buildEmailHtml(
+        subject,
+        `
+        <p class="text">We detected a new login to your DKart account from an IP address you haven't used before.</p>
+        <div class="stats-box">
+            <p><strong>IP Address:</strong> ${ipAddress}</p>
+            <p><strong>Device/Browser:</strong> ${userAgent || 'Unknown'}</p>
+            <p><strong>Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</p>
+        </div>
+        <p class="text">If this was you, you can safely ignore this email.</p>
+        <p class="text" style="color: #ef4444; font-weight: bold;">If you did not authorize this login, please contact support immediately.</p>
+        `
+    );
+
+    await sendTransactionalEmail(userEmail, subject, subject, html)
+        .catch(err => console.error(`Failed to send new login alert to ${userEmail}:`, err));
+};
+
 module.exports = {
     emailAdmins,
     emailUser,
@@ -214,4 +236,5 @@ module.exports = {
     emailNewChatRoom,
     emailDealLocked,
     emailKycSubmission,
+    emailNewLoginAlert,
 };

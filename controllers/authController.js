@@ -93,7 +93,18 @@ const verifyOtp = async (req, res) => {
     return res.status(400).json({ error: "User ID and OTP are required" });
   }
 
+  let rawIp = req.headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress || 'Unknown';
+  if (rawIp === '::1' || rawIp === '::ffff:127.0.0.1') rawIp = '127.0.0.1 (Localhost)';
+  const ipAddress = rawIp;
+  const userAgent = req.headers['user-agent'] || 'Unknown';
+
   try {
+    // 1. Check IP Blacklist
+    const blacklistCheck = await db.query('SELECT reason FROM ip_blacklist WHERE ip_address = $1', [ipAddress]);
+    if (blacklistCheck.rows.length > 0) {
+      return res.status(403).json({ error: "Access denied from this IP address." });
+    }
+
     const cachedOtp = await cache.get(`otp:${userId}`);
 
     if (!cachedOtp || cachedOtp !== otp) {
@@ -137,6 +148,18 @@ const verifyOtp = async (req, res) => {
         // Email all admins about the new registration
         const { emailNewRegistration } = require('../services/emailService');
         emailNewRegistration(user.email || user.phone, user.id);
+    }
+
+    // IP Tracking & Alerts
+    const ipCheck = await db.query('SELECT id FROM login_history WHERE user_id = $1 AND ip_address = $2 LIMIT 1', [userId, ipAddress]);
+    const isNewIp = ipCheck.rows.length === 0;
+
+    await db.query('INSERT INTO login_history (user_id, ip_address, user_agent) VALUES ($1, $2, $3)', [userId, ipAddress, userAgent]);
+
+    // Send warning email if this is a new IP and the user already existed (not a brand new registration)
+    if (isNewIp && wasVerified && user.email) {
+        const { emailNewLoginAlert } = require('../services/emailService');
+        emailNewLoginAlert(user.email, ipAddress, userAgent).catch(err => console.error('Failed to send login alert:', err));
     }
 
     const token = jwt.sign(

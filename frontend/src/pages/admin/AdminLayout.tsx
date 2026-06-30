@@ -8,6 +8,8 @@ import {
   Loader2,
   BarChart3,
   ChevronRight,
+  Users,
+  ShieldAlert,
 } from "lucide-react";
 import { useAdminStats } from "@/hooks/useAdminKyc";
 import { AdminNotifications } from "@/components/layout/AdminNotifications";
@@ -16,6 +18,8 @@ const NAV_ITEMS = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
   { label: "KYC Applications", href: "/admin/kyc", icon: ShieldCheck, badge: "pendingKyc" },
   { label: "Deal Funnel", href: "/admin/deals", icon: TrendingUp },
+  { label: "Manage Users", href: "/admin/users", icon: Users },
+  { label: "Security & IPs", href: "/admin/security", icon: ShieldAlert },
 ];
 
 export function AdminLayout() {
@@ -35,8 +39,8 @@ export function AdminLayout() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <div className="flex">
-        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-        <aside className="w-64 min-h-screen bg-slate-900 border-r border-slate-800 flex flex-col sticky top-0 h-screen">
+        {/* ── Sidebar (Desktop Only) ─────────────────────────────────────── */}
+        <aside className="hidden md:flex w-64 min-h-screen bg-slate-900 border-r border-slate-800 flex-col sticky top-0 h-screen">
           {/* Logo */}
           <div className="p-6 border-b border-slate-800">
             <Link to="/" className="flex items-center gap-3">
@@ -130,12 +134,49 @@ export function AdminLayout() {
         </aside>
 
         {/* ── Main Content ────────────────────────────────────────────────── */}
-        <main className="flex-1 min-h-screen overflow-auto flex flex-col">
-          <div className="p-8 flex-1">
+        <main className="flex-1 min-h-screen overflow-auto flex flex-col pb-16 md:pb-0">
+          <div className="p-4 md:p-8 flex-1">
             <Outlet />
           </div>
         </main>
       </div>
+
+      {/* ── Mobile Bottom Navigation Bar ─────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-800 shadow-lg">
+        <div className="flex items-center justify-around px-2 py-2">
+          {NAV_ITEMS.map((item) => {
+            const isActive = item.exact 
+              ? location.pathname === item.href 
+              : location.pathname.startsWith(item.href);
+            const badgeCount =
+                item.badge && stats ? (stats as Record<string, number>)[item.badge] : 0;
+
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={`relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${
+                  isActive ? 'text-violet-400' : 'text-slate-400'
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="text-[10px] font-semibold">{item.label}</span>
+                {badgeCount > 0 && (
+                  <span className="absolute top-1 right-2 w-2 h-2 bg-amber-500 rounded-full border border-slate-900"></span>
+                )}
+              </Link>
+            );
+          })}
+          
+          <Link
+            to="/dashboard"
+            className="relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all text-slate-400"
+          >
+            <BarChart3 className="h-5 w-5" />
+            <span className="text-[10px] font-semibold">User App</span>
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }

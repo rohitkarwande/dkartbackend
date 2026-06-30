@@ -19,6 +19,8 @@ import { AdminLayout } from "./pages/admin/AdminLayout";
 import { AdminOverview } from "./pages/admin/AdminOverview";
 import { KycApplications } from "./pages/admin/KycApplications";
 import { DealFunnel } from "./pages/admin/DealFunnel";
+import { AdminUsers } from "./pages/admin/AdminUsers";
+import { AdminSecurity } from "./pages/admin/AdminSecurity";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRoleSync } from "./hooks/useAuth";
 
@@ -61,6 +63,8 @@ function App() {
               <Route index element={<AdminOverview />} />
               <Route path="kyc" element={<KycApplications />} />
               <Route path="deals" element={<DealFunnel />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="security" element={<AdminSecurity />} />
             </Route>
           </Route>
 

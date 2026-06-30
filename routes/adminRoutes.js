@@ -11,6 +11,9 @@ router.use(authMiddleware, isAdmin);
 // 1. Dashboard Statistics
 router.get('/dashboard', adminController.getDashboardStats);
 
+// 1.5 Reports
+router.get('/reports/csv', auditLog('EXPORT_CSV', 'report'), adminController.getReportCsv);
+
 // 2. User Management
 router.get('/users', adminController.getAllUsers);
 router.patch('/users/:id/status', auditLog('UPDATE_USER_STATUS', 'user'), adminController.updateUserStatus);
@@ -39,6 +42,12 @@ router.post('/kyc/:userId/reject', auditLog('REJECT_KYC', 'kyc_document'), admin
 // 7. Admin Notifications
 router.get('/notifications', adminController.getAdminNotifications);
 router.put('/notifications/:id/read', adminController.markNotificationRead);
+
+// 8. Security & IPs
+router.get('/login-history', adminController.getLoginHistory);
+router.get('/ip-blacklist', adminController.getIpBlacklist);
+router.post('/ip-blacklist', auditLog('BLACKLIST_IP', 'security'), adminController.addIpToBlacklist);
+router.delete('/ip-blacklist/:ip', auditLog('UNBLACKLIST_IP', 'security'), adminController.removeIpFromBlacklist);
 
 module.exports = router;
 
